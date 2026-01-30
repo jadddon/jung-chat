@@ -1,0 +1,11 @@
+# Document extraction
+pymupdf>=1.23.0
+ebooklib>=0.18
+beautifulsoup4>=4.12.0
+
+# Text processing
+tiktoken>=0.5.0
+
+# Vector database
+pinecone-client>=3.0.0
+requests>=2.31.0
