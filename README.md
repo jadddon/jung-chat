@@ -1,40 +1,142 @@
-# Jung Chat
+# JungRAG
 
-RAG-powered exploration of Jung's collected works.
+A retrieval-augmented generation (RAG) system for exploring Carl Jung's collected works. Ask questions about Jungian psychology and receive answers grounded in primary sources with citations.
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+**Live demo:** [jung-chat.vercel.app](https://jung-chat.vercel.app)
 
-## Getting Started
+## Overview
 
-First, run the development server:
+This project indexes 34 volumes of Jung's writings (~47,000 text chunks) into a vector database, enabling semantic search over millions of words. When you ask a question:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+1. Your query is converted to a vector embedding
+2. The most semantically similar text chunks are retrieved from Pinecone
+3. Retrieved context is passed to Claude for grounded response generation
+4. You receive an answer with citations to the source texts
+
+## Tech Stack
+
+**Frontend & API**
+- Next.js 16 (App Router)
+- TypeScript
+- Tailwind CSS
+- Deployed on Vercel
+
+**AI & Search**
+- Claude (Anthropic) for response generation
+- Pinecone for vector storage and semantic search
+- multilingual-e5-large embeddings (1024 dimensions)
+
+**Data Processing**
+- Python scripts for PDF/EPUB extraction
+- Custom text cleaning for OCR artifacts
+- Semantic chunking with chapter detection
+
+## Project Structure
+
+```
+jung-chat/
+├── src/
+│   └── app/
+│       ├── api/chat/       # RAG API endpoint
+│       │   └── route.ts    # Query → Retrieve → Generate
+│       ├── page.tsx        # Main exploration interface
+│       ├── process/        # Technical documentation page
+│       └── globals.css     # Styling
+├── processing/             # Data pipeline (Python)
+│   ├── extract_pdf.py      # PDF text extraction
+│   ├── extract_epub.py     # EPUB text extraction
+│   ├── clean_text.py       # OCR artifact correction
+│   ├── chunk_text.py       # Semantic chunking
+│   ├── upload_to_pinecone.py  # Vector indexing
+│   └── requirements.txt
+├── public/                 # Static assets
+└── package.json
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Prerequisites
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Node.js 18+
+- Python 3.9+ (for data processing)
+- Pinecone account
+- Anthropic API key
 
-## Learn More
+### Installation
 
-To learn more about Next.js, take a look at the following resources:
+1. Clone the repository
+```bash
+git clone https://github.com/jadddon/jung-chat.git
+cd jung-chat
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. Install dependencies
+```bash
+npm install
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. Set up environment variables
+```bash
+cp .env.example .env.local
+```
 
-## Deploy on Vercel
+Edit `.env.local` with your API keys:
+```
+ANTHROPIC_API_KEY=your_anthropic_key
+PINECONE_API_KEY=your_pinecone_key
+PINECONE_INDEX=jung-works
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+4. Run the development server
+```bash
+npm run dev
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Data Processing Pipeline
+
+To process source texts and populate the vector database:
+
+```bash
+cd processing
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Run pipeline steps
+python extract_pdf.py      # Extract text from PDFs
+python extract_epub.py     # Extract text from EPUBs
+python clean_text.py       # Clean OCR artifacts
+python chunk_text.py       # Create semantic chunks
+python upload_to_pinecone.py  # Index vectors
+```
+
+## Architecture
+
+### RAG Pipeline
+
+```
+User Query
+    ↓
+Generate Query Embedding (multilingual-e5-large)
+    ↓
+Semantic Search (Pinecone, top-k=6)
+    ↓
+Filter by Relevance (score > 0.7, max 3)
+    ↓
+Build Context with Citations
+    ↓
+Generate Response (Claude)
+    ↓
+Return Answer + Sources
+```
+
+### Key Design Decisions
+
+- **Chunk size**: 400 tokens target, 600 max. Balances retrieval precision with context preservation.
+- **Similarity threshold**: 0.7 minimum. Ensures only highly relevant context reaches the LLM.
+- **Embedding model**: multilingual-e5-large for strong semantic understanding of philosophical text.
+- **Citation style**: Numbered references [1], [2] linking to work title and chapter.
+
+## License
+
+MIT
